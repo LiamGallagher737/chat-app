@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form action="/login" method="post">
+    <label>
+        Enter your email:
+        <input type="email" name="email">
+    </label>
+
+    <label>
+        Enter your password:
+        <input type="password" name="password">
+    </label>
+
+    {% match redirect %}
+    {% when Some with (value) %}
+    <input type="hidden" name="redirect" value="{{value}}">
+    {% when None %}
+    {% endmatch %}
+
+    <button type="submit">Log in</button>
+</form>
+
+{% match error %}
+{% when Some with (msg) %}
+<p class="error">{{msg}}</p>
+{% when None %}
+{% endmatch %}
+
+<p>Don't have an account? <a href="/signup">Sign up!</a></p>
+
+<style>
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .error {
+        color: red;
+    }
+</style>
+{% endblock %}

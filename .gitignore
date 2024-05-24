@@ -1,0 +1,5 @@
+target/
+.sqlx/
+Cargo.lock
+.env
+db.sqlite

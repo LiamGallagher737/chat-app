@@ -1,0 +1,19 @@
+[package]
+name = "chat-app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+argon2 = { version = "0.5", features = ["simple", "rand", "std"] }
+askama = "0.12"
+askama_axum = "0.4"
+axum = "0.7"
+password-hash = "0.5.0"
+serde = { version = "1.0", features = ["derive"] }
+serde-email = "3.0.1"
+sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite"] }
+tokio = { version = "1.37", features = ["full"] }
+tower-http = { version = "0.5", features = ["trace"] }
+tower-sessions = "0.12.2"
+tracing = "0.1"
+tracing-subscriber = "0.3"

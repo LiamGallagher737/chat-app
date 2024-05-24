@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form action="/signup" method="post">
+    <label for="first_name">
+        Enter your name:
+        <input type="text" name="name">
+    </label>
+
+    <label for="age">
+        Enter your age:
+        <input type="number" min="0" max="255" name="age">
+    </label>
+
+    <label>
+        Enter your email:
+        <input type="email" name="email">
+    </label>
+
+    <label>
+        Enter your password:
+        <input type="password" name="password">
+    </label>
+
+    <button type="submit">Sign Up!</button>
+</form>
+
+{% match error %}
+    {% when Some with (msg) %}
+        <p class="error">{{msg}}</p>
+    {% when None %}
+{% endmatch %}
+
+<p>Already have an account? <a href="/login">Log in!</a></p>
+
+<style>
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+    .error {
+        color: red;
+    }
+</style>
+{% endblock %}
