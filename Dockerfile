@@ -7,10 +7,12 @@ RUN cargo install sqlx-cli
 
 WORKDIR /chat-app
 
-COPY Cargo.toml .env .
+COPY Cargo.toml .
 COPY migrations/ ./migrations
 COPY templates/ ./templates
 COPY src/ ./src
+
+RUN echo "DATABASE_URL=sqlite://db.sqlite" > .env
 RUN touch db.sqlite
 RUN sqlx migrate run
 
