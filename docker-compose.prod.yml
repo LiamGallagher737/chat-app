@@ -1,0 +1,20 @@
+services:
+  rust-http-server:
+    image: ghcr.io/liamgallagher737/chat-app:latest
+    ports:
+      - "43561:43561"
+    environment:
+      - DATABASE_URL=sqlite:///data/db.sqlite
+    volumes:
+      - data:/chat-app/sqlite.db
+
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=30
+
+volumes:
+  data:
