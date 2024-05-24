@@ -34,7 +34,7 @@ async fn main() {
         .layer(session_layer)
         .with_state(db_conenction_pool);
 
-    let listener = TcpListener::bind("127.0.0.1:43561").await.unwrap();
+    let listener = TcpListener::bind("0.0.0.0:43561").await.unwrap();
 
     info!("Listening on http://{}", listener.local_addr().unwrap());
 
