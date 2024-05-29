@@ -6,7 +6,7 @@ use askama::Template;
 use axum::{
     extract::State,
     http::StatusCode,
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
     Form,
 };
 use serde::Deserialize;
@@ -29,13 +29,6 @@ pub struct Input {
     age: u8,
     email: Email,
     password: String,
-}
-
-#[derive(Template)]
-#[template(path = "success.html")]
-pub struct SuccessPage {
-    name: String,
-    email: String,
 }
 
 pub async fn post_user(
@@ -75,11 +68,7 @@ pub async fn post_user(
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(SuccessPage {
-        name: input.name,
-        email,
-    }
-    .into_response())
+    Ok(Redirect::to("/login").into_response())
 }
 
 fn hash_password(password: String) -> Option<String> {
