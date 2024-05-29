@@ -73,25 +73,24 @@ pub async fn login(
 
     let valid = verify_password(input.password, user.password_hash);
 
-    session
-        .insert(
-            "user",
-            SessionUser {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                age: user.age,
-            },
-        )
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
     let redirect = match &input.redirect {
         Some(uri) => Redirect::to(uri),
         None => Redirect::to("/"),
     };
 
     if valid {
+        session
+            .insert(
+                "user",
+                SessionUser {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    age: user.age,
+                },
+            )
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         Ok(redirect.into_response())
     } else {
         Ok(LoginPage {
