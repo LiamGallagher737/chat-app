@@ -66,10 +66,12 @@ pub async fn login(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let email = input.email.to_string();
-    let user = sqlx::query_as!(DbUser, "SELECT * FROM users WHERE email = ?", email)
+    let Ok(user) = sqlx::query_as!(DbUser, "SELECT * FROM users WHERE email = ?", email)
         .fetch_one(&mut *conn)
         .await
-        .map_err(|_| StatusCode::NOT_FOUND)?;
+    else {
+        return Ok(Redirect::to("/signup").into_response());
+    };
 
     let valid = verify_password(input.password, user.password_hash);
 
