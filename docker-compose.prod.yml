@@ -1,10 +1,8 @@
 services:
   rust-http-server:
-    image: ghcr.io/liamgallagher737/chat-app:latest
+    image: ghcr.io/liamgallagher737/chat-app:main
     ports:
       - "43561:43561"
-    environment:
-      - DATABASE_URL=sqlite:///data/db.sqlite
     volumes:
       - data:/chat-app/sqlite.db
 
