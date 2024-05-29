@@ -30,6 +30,7 @@ async fn main() {
         .route("/", get(feed::get_posts).post(feed::post_post))
         .route("/signup", get(users::signup_page).post(users::post_user))
         .route("/login", get(sessions::login_page).post(sessions::login))
+        .route("/htmx.min.js", get(htmx))
         .layer(TraceLayer::new_for_http())
         .layer(session_layer)
         .with_state(db_conenction_pool);
@@ -39,4 +40,8 @@ async fn main() {
     info!("Listening on http://{}", listener.local_addr().unwrap());
 
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn htmx() -> &'static str {
+    include_str!("htmx.min.js")
 }
