@@ -75,6 +75,10 @@ pub async fn post_post(
         return Ok(Redirect::to("/login").into_response());
     };
 
+    if input.content.is_empty() {
+        return Ok(StatusCode::BAD_REQUEST.into_response());
+    }
+    
     if !is_kind_message(&input.content)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
