@@ -134,7 +134,7 @@ async fn is_kind_message(input: &str) -> Result<bool, reqwest::Error> {
     let report: ModerationReport = client
         .post("https://despam.io/api/v1/moderate")
         .json(&ModerationRequest { input })
-        .header("x-api-key", include_str!("despam.token"))
+        .header("x-api-key", dotenvy::var("DESPAM_API_KEY").expect("Despam api key is required"))
         .send()
         .await?
         .json()

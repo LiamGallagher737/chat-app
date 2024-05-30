@@ -8,6 +8,7 @@ argon2 = { version = "0.5", features = ["simple", "rand", "std"] }
 askama = "0.12"
 askama_axum = "0.4"
 axum = "0.7"
+dotenvy = "0.15.7"
 password-hash = "0.5.0"
 reqwest = { version = "0.12.4", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
