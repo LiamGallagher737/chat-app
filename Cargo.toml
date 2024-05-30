@@ -9,6 +9,7 @@ askama = "0.12"
 askama_axum = "0.4"
 axum = "0.7"
 password-hash = "0.5.0"
+reqwest = { version = "0.12.4", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde-email = "3.0.1"
 sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite"] }
