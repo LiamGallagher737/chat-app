@@ -140,8 +140,8 @@ async fn is_kind_message(input: &str) -> Result<bool, reqwest::Error> {
         .json()
         .await?;
 
-    Ok(report.toxic < 0.8
-        && report.indecent < 0.9
+    Ok(report.toxic < 0.6
+        && report.indecent < 0.6
         && report.threat < 0.6
         && report.offensive < 0.8
         && report.erotic < 0.6
