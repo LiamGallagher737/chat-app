@@ -11,7 +11,9 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() {
-    dotenvy::dotenv().unwrap();
+    if dotenvy::dotenv().is_ok() {
+        info!("Loaded .env");
+    }
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .init();
