@@ -113,6 +113,10 @@ pub async fn post_post(
     .into_response())
 }
 
+pub async fn serve_js() -> &'static str {
+    include_str!("feed.js")
+}
+
 async fn retrieve_posts_with_user_name(conn: &mut PoolConnection<Sqlite>) -> Option<Vec<DbPost>> {
     sqlx::query_as!(
         DbPost,
