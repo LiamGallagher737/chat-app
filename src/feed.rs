@@ -1,4 +1,4 @@
-use crate::sessions::SessionUser;
+use crate::{moderation::is_kind_message, sessions::SessionUser};
 use askama::Template;
 use axum::{
     extract::State,
@@ -6,7 +6,7 @@ use axum::{
     response::{Html, IntoResponse, Redirect, Response},
     Form,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sqlx::{pool::PoolConnection, Sqlite, SqlitePool};
 use tower_sessions::Session;
 use tracing::info;
@@ -78,7 +78,7 @@ pub async fn post_post(
     if input.content.is_empty() {
         return Ok(StatusCode::BAD_REQUEST.into_response());
     }
-    
+
     if !is_kind_message(&input.content)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
@@ -131,38 +131,4 @@ async fn retrieve_posts_with_user_name(conn: &mut PoolConnection<Sqlite>) -> Opt
     .fetch_all(&mut **conn)
     .await
     .ok()
-}
-
-async fn is_kind_message(input: &str) -> Result<bool, reqwest::Error> {
-    let client = reqwest::Client::new();
-    let report: ModerationReport = client
-        .post("https://despam.io/api/v1/moderate")
-        .json(&ModerationRequest { input })
-        .header("x-api-key", dotenvy::var("DESPAM_API_KEY").expect("Despam api key is required"))
-        .send()
-        .await?
-        .json()
-        .await?;
-
-    Ok(report.toxic < 0.6
-        && report.indecent < 0.6
-        && report.threat < 0.6
-        && report.offensive < 0.8
-        && report.erotic < 0.6
-        && report.spam < 0.8)
-}
-
-#[derive(Serialize)]
-struct ModerationRequest<'a> {
-    input: &'a str,
-}
-
-#[derive(Deserialize, Debug)]
-struct ModerationReport {
-    pub toxic: f64,
-    pub indecent: f64,
-    pub threat: f64,
-    pub offensive: f64,
-    pub erotic: f64,
-    pub spam: f64,
 }

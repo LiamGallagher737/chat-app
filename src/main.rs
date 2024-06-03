@@ -1,4 +1,5 @@
 mod feed;
+mod moderation;
 mod sessions;
 mod users;
 
@@ -19,10 +20,7 @@ async fn main() {
         .init();
 
     let db_conenction_pool = SqlitePool::connect("sqlite://db.sqlite").await.unwrap();
-    sqlx::migrate!()
-        .run(&db_conenction_pool)
-        .await
-        .unwrap();
+    sqlx::migrate!().run(&db_conenction_pool).await.unwrap();
 
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
@@ -44,4 +42,3 @@ async fn main() {
 
     axum::serve(listener, app).await.unwrap();
 }
-
