@@ -25,7 +25,7 @@ async fn main() {
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::minutes(5)));
+        .with_expiry(Expiry::OnInactivity(Duration::days(5)));
 
     let app = Router::new()
         .route("/", get(feed::get_posts).post(feed::post_post))
