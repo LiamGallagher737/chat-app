@@ -14,6 +14,8 @@ use serde_email::Email;
 use sqlx::SqlitePool;
 use tracing::info;
 
+use crate::moderation::is_kind_message;
+
 #[derive(Template, Default)]
 #[template(path = "signup.html")]
 pub struct SignupPage {
@@ -40,6 +42,16 @@ pub async fn post_user(
         .acquire()
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if !is_kind_message(&input.name)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        return Ok(SignupPage {
+            error: Some("That username is too rude for this site >:("),
+        }
+        .into_response());
+    }
 
     let email = input.email.to_string();
 
