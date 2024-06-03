@@ -88,10 +88,12 @@ pub async fn post_post(
         );
     }
 
+    let content = input.content.replace("\n", "");
+
     sqlx::query!(
         "INSERT INTO posts (user_id, content) VALUES ( ?, ? )",
         user.id,
-        input.content,
+        content,
     )
     .execute(&mut *conn)
     .await
