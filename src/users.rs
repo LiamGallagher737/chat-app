@@ -3,12 +3,15 @@ pub mod filters {
     use super::templates;
     use crate::database::{with_db, DbPool};
     use crate::form_body;
+    use crate::sessions::filters::with_key;
+    use crate::sessions::Key;
     use warp::Filter;
 
     pub fn routes(
         pool: DbPool,
+        key: Key,
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-        warp::path("signup").and(signup_page().or(users_create(pool)))
+        warp::path("signup").and(signup_page().or(users_create(pool, key)))
     }
 
     /// GET /signup
@@ -20,10 +23,12 @@ pub mod filters {
     /// POST /users with form body
     pub fn users_create(
         pool: DbPool,
+        key: Key,
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
         warp::post()
             .and(form_body())
             .and(with_db(pool))
+            .and(with_key(key))
             .and_then(handlers::create_user)
             .recover(handlers::rejection_handler)
     }
@@ -32,12 +37,16 @@ pub mod filters {
 mod handlers {
     use super::models::*;
     use super::templates::SignupPage;
-    use crate::{database::Db, InternalServerError};
+    use crate::{database::Db, sessions::Key, InternalServerError};
     use argon2::Argon2;
     use password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
-    use warp::{http::Uri, reject::Rejection, reply::Reply};
+    use warp::{
+        http::Uri,
+        reject::Rejection,
+        reply::{with_header, Reply},
+    };
 
-    pub async fn create_user(user: NewUser, mut db: Db) -> Result<impl Reply, Rejection> {
+    pub async fn create_user(user: NewUser, mut db: Db, key: Key) -> Result<impl Reply, Rejection> {
         let already_exists = sqlx::query!("SELECT * FROM users WHERE username = ?", user.username)
             .fetch_optional(&mut *db)
             .await
@@ -64,7 +73,14 @@ mod handlers {
         .await
         .map_err(|_| warp::reject::custom(InternalServerError))?;
 
-        Ok(warp::redirect::see_other(Uri::from_static("/login")))
+        let token = crate::sessions::generate_token(key, 1, user.username)
+            .map_err(|_| warp::reject::custom(InternalServerError))?;
+
+        Ok(with_header(
+            warp::redirect::see_other(Uri::from_static("/login")),
+            "authorization",
+            token,
+        ))
     }
 
     pub async fn rejection_handler(err: Rejection) -> Result<impl Reply, Rejection> {
