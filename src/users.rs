@@ -77,7 +77,7 @@ mod handlers {
             .map_err(|_| warp::reject::custom(InternalServerError))?;
 
         Ok(with_header(
-            warp::redirect::see_other(Uri::from_static("/login")),
+            warp::redirect::see_other(Uri::from_static("/")),
             "authorization",
             token,
         ))

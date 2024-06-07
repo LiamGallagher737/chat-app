@@ -34,7 +34,16 @@ async fn main() {
             ws.on_upgrade(move |socket| live::user_connected(socket, users))
         });
 
-    let routes = users::filters::routes(db_conenction_pool.clone(), jwt_key.clone());
+    let routes = users::filters::routes(db_conenction_pool.clone(), jwt_key.clone())
+        .or(sessions::filters::routes(
+            db_conenction_pool.clone(),
+            jwt_key.clone(),
+        ))
+        .or(feed::filters::get_feed(
+            db_conenction_pool.clone(),
+            jwt_key.clone(),
+        ))
+        .recover(sessions::not_authenticated_handler);
 
     warp::serve(routes).run(([127, 0, 0, 1], 43561)).await;
 }

@@ -1,6 +1,10 @@
 use jwt_simple::{algorithms::MACLike, claims::Claims, reexports::coarsetime::Duration};
 
+pub use filters::with_auth;
+pub use handlers::not_authenticated_handler;
+
 pub type Key = jwt_simple::algorithms::HS256Key;
+pub type User = AdditionalClaimData;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct AdditionalClaimData {
@@ -19,9 +23,25 @@ pub fn generate_token(
 }
 
 pub mod filters {
+    use crate::database::DbPool;
+
+    use super::templates;
     use super::{models::Error, AdditionalClaimData, Key};
     use jwt_simple::algorithms::MACLike;
     use warp::Filter;
+
+    pub fn routes(
+        pool: DbPool,
+        key: Key,
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+        warp::path("login").and(login_page())
+    }
+
+    /// GET /signup
+    pub fn login_page(
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+        warp::get().map(|| templates::LoginPage::default())
+    }
 
     pub fn with_auth(
         key: Key,
@@ -40,7 +60,9 @@ pub mod filters {
         })
     }
 
-    pub fn with_key(key: Key) -> impl Filter<Extract = (Key,), Error = std::convert::Infallible> + Clone {
+    pub fn with_key(
+        key: Key,
+    ) -> impl Filter<Extract = (Key,), Error = std::convert::Infallible> + Clone {
         warp::any().map(move || key.clone())
     }
 }
@@ -49,11 +71,21 @@ mod handlers {
     use super::models::Error;
     use warp::{http::Uri, reject::Rejection, reply::Reply};
 
-    pub async fn rejection_handler(err: Rejection) -> Result<impl Reply, Rejection> {
+    pub async fn not_authenticated_handler(err: Rejection) -> Result<impl Reply, Rejection> {
         if let Some(Error::NotAuthenticated) = err.find() {
             return Ok(warp::redirect::see_other(Uri::from_static("/login")));
         }
         Err(err)
+    }
+}
+
+mod templates {
+    use askama::Template;
+
+    #[derive(Template, Default)]
+    #[template(path = "login.html")]
+    pub struct LoginPage {
+        pub error: Option<&'static str>,
     }
 }
 
