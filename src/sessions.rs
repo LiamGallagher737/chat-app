@@ -3,10 +3,12 @@ use jwt_simple::{algorithms::MACLike, claims::Claims, reexports::coarsetime::Dur
 pub use filters::with_auth;
 pub use handlers::not_authenticated_handler;
 
+pub const SESSION_LENGTH_SECS: usize = 60 * 60 * 24; // 1 day
+
 pub type Key = jwt_simple::algorithms::HS256Key;
 pub type User = AdditionalClaimData;
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct AdditionalClaimData {
     user_id: i64,
     username: String,
@@ -23,9 +25,10 @@ pub fn generate_token(
 }
 
 pub mod filters {
-    use crate::database::DbPool;
+    use crate::database::{with_db, DbPool};
+    use crate::form_body;
 
-    use super::templates;
+    use super::{handlers, templates};
     use super::{models::Error, AdditionalClaimData, Key};
     use jwt_simple::algorithms::MACLike;
     use warp::Filter;
@@ -34,30 +37,45 @@ pub mod filters {
         pool: DbPool,
         key: Key,
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-        warp::path("login").and(login_page())
+        warp::path("login")
+            .and(login_page())
+            .or(session_create(pool.clone(), key.clone()))
     }
 
-    /// GET /signup
+    /// GET /login
     pub fn login_page(
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
         warp::get().map(|| templates::LoginPage::default())
     }
 
+    /// POST /login
+    pub fn session_create(
+        pool: DbPool,
+        key: Key,
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+        warp::post()
+            .and(form_body())
+            .and(with_db(pool))
+            .and(with_key(key))
+            .and_then(handlers::create_session)
+            .recover(handlers::rejection_handler)
+    }
+
     pub fn with_auth(
         key: Key,
     ) -> impl Filter<Extract = (AdditionalClaimData,), Error = warp::Rejection> + Clone {
-        warp::header::optional("authorization").and_then(move |auth: Option<String>| {
-            let key = key.clone();
-            async move {
-                match auth {
-                    Some(token) => match key.verify_token::<AdditionalClaimData>(&token, None) {
-                        Ok(claims) => Ok(claims.custom),
-                        Err(_) => Err(warp::reject::custom(Error::NotAuthenticated)),
-                    },
-                    None => Err(warp::reject::custom(Error::NotAuthenticated)),
+        warp::any()
+            .and(warp::cookie::<String>("jwt"))
+            .and_then(move |jwt: String| {
+                let key = key.clone();
+                async move {
+                    Ok::<_, warp::Rejection>(
+                        key.verify_token::<AdditionalClaimData>(&jwt, None)
+                            .map_err(|_| Error::NotAuthenticated)?
+                            .custom,
+                    )
                 }
-            }
-        })
+            })
     }
 
     pub fn with_key(
@@ -68,8 +86,63 @@ pub mod filters {
 }
 
 mod handlers {
-    use super::models::Error;
-    use warp::{http::Uri, reject::Rejection, reply::Reply};
+    use super::{models::*, templates::*, Key, SESSION_LENGTH_SECS};
+    use crate::{database::Db, InternalServerError};
+    use argon2::Argon2;
+    use password_hash::{PasswordHash, PasswordVerifier};
+    use warp::{
+        http::Uri,
+        reject::Rejection,
+        reply::{with_header, Reply},
+    };
+
+    pub async fn create_session(
+        credentials: UserCredentials,
+        mut db: Db,
+        key: Key,
+    ) -> Result<impl Reply, Rejection> {
+        let user = sqlx::query_as!(
+            UsernameAndPass,
+            "SELECT username, password_hash FROM users WHERE username = ?",
+            credentials.username,
+        )
+        .fetch_optional(&mut *db)
+        .await
+        .map_err(|_| warp::reject::custom(InternalServerError))?;
+
+        let Some(user) = user else {
+            return Err(Error::InvalidCredentials.into());
+        };
+
+        let argon2 = Argon2::default();
+        let correct_password = argon2
+            .verify_password(
+                credentials.password.as_bytes(),
+                &PasswordHash::new(&user.password_hash).unwrap(),
+            )
+            .is_ok();
+        if !correct_password {
+            return Err(Error::InvalidCredentials.into());
+        };
+
+        let token = crate::sessions::generate_token(key, 1, user.username)
+            .map_err(|_| warp::reject::custom(InternalServerError))?;
+
+        Ok(with_header(
+            warp::redirect::see_other(Uri::from_static("/")),
+            "set-cookie",
+            format!("jwt={token}; max-age={SESSION_LENGTH_SECS}; secure; httponly;"),
+        ))
+    }
+
+    pub async fn rejection_handler(err: Rejection) -> Result<impl Reply, Rejection> {
+        if let Some(Error::InvalidCredentials) = err.find() {
+            return Ok(LoginPage {
+                error: Some("Invalid credentials"),
+            });
+        }
+        Err(err)
+    }
 
     pub async fn not_authenticated_handler(err: Rejection) -> Result<impl Reply, Rejection> {
         if let Some(Error::NotAuthenticated) = err.find() {
@@ -90,8 +163,20 @@ mod templates {
 }
 
 mod models {
+    #[derive(Debug, serde::Deserialize)]
+    pub struct UserCredentials {
+        pub username: String,
+        pub password: String,
+    }
+
+    pub struct UsernameAndPass {
+        pub username: String,
+        pub password_hash: String,
+    }
+
     #[derive(Debug)]
     pub enum Error {
+        InvalidCredentials,
         NotAuthenticated,
     }
     impl warp::reject::Reject for Error {}

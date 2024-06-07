@@ -37,7 +37,11 @@ pub mod filters {
 mod handlers {
     use super::models::*;
     use super::templates::SignupPage;
-    use crate::{database::Db, sessions::Key, InternalServerError};
+    use crate::{
+        database::Db,
+        sessions::{Key, SESSION_LENGTH_SECS},
+        InternalServerError,
+    };
     use argon2::Argon2;
     use password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
     use warp::{
@@ -78,8 +82,8 @@ mod handlers {
 
         Ok(with_header(
             warp::redirect::see_other(Uri::from_static("/")),
-            "authorization",
-            token,
+            "set-cookie",
+            format!("jwt={token}; max-age={SESSION_LENGTH_SECS}; secure; httponly;"),
         ))
     }
 
