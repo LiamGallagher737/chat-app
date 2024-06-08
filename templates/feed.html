@@ -27,7 +27,7 @@
 
     <script>
         const chat = document.getElementById("chat");
-        const sse = new EventSource("http://" + location.host + "/feed");
+        const sse = new EventSource("/feed");
         sse.onmessage = function(msg) {
             const parent = document.createElement('li');
             const element = document.createElement('p');
