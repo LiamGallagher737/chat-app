@@ -6,7 +6,7 @@
     </noscript>
 
     <iframe name="frame" style="display: none;"></iframe>
-    <form action="/feed" method="post" target="frame">
+    <form action="/feed" method="post" target="frame" id="send-message-form">
         <label>
             Message:
             <input type="text" minlength="1" name="content" required>
@@ -35,5 +35,8 @@
             element.innerText = msg.data;
             chat.insertBefore(parent, chat.firstChild);
         };
+
+        const sendMessageForm = document.getElementById("send-message-form");
+        sendMessageForm.addEventListener("formdata", () => sendMessageForm.reset());
     </script>
 {% endblock content %}
