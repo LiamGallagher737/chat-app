@@ -1,44 +1,45 @@
+use serde::de::DeserializeOwned;
+use warp::{reject::Reject, Filter};
+
+mod database;
 mod feed;
-mod moderation;
 mod sessions;
 mod users;
 
-use axum::{routing::get, Router};
-use sqlx::SqlitePool;
-use tokio::net::TcpListener;
-use tower_http::trace::TraceLayer;
-use tower_sessions::{cookie::time::Duration, Expiry, MemoryStore, SessionManagerLayer};
-use tracing::info;
-
 #[tokio::main]
 async fn main() {
-    if dotenvy::dotenv().is_ok() {
-        info!("Loaded .env");
-    }
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
+    pretty_env_logger::formatted_builder()
+        .parse_filters("warp=info,chat_app=trace")
         .init();
 
-    let db_conenction_pool = SqlitePool::connect("sqlite://db.sqlite").await.unwrap();
+    let db_conenction_pool = database::DbPool::connect("sqlite://db.sqlite")
+        .await
+        .unwrap();
     sqlx::migrate!().run(&db_conenction_pool).await.unwrap();
 
-    let session_store = MemoryStore::default();
-    let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::days(5)));
+    let jwt_key = sessions::Key::generate();
 
-    let app = Router::new()
-        .route("/", get(feed::get_posts).post(feed::post_post))
-        .route("/signup", get(users::signup_page).post(users::post_user))
-        .route("/login", get(sessions::login_page).post(sessions::login))
-        .route("/feed.js", get(feed::serve_js))
-        .layer(TraceLayer::new_for_http())
-        .layer(session_layer)
-        .with_state(db_conenction_pool);
+    let routes = users::filters::routes(db_conenction_pool.clone(), jwt_key.clone())
+        .or(sessions::filters::routes(
+            db_conenction_pool.clone(),
+            jwt_key.clone(),
+        ))
+        .or(feed::filters::routes(
+            db_conenction_pool.clone(),
+            jwt_key.clone(),
+        ))
+        .recover(sessions::not_authenticated_handler)
+        //.or(warp::any().map(|| warp::reply::with_status("Not found", warp::http::StatusCode::NOT_FOUND)))
+        .with(warp::log("warp"));
 
-    let listener = TcpListener::bind("0.0.0.0:43561").await.unwrap();
-
-    info!("Listening on http://{}", listener.local_addr().unwrap());
-
-    axum::serve(listener, app).await.unwrap();
+    warp::serve(routes).run(([127, 0, 0, 1], 43561)).await;
 }
+
+fn form_body<T: DeserializeOwned + Send + Sync>(
+) -> impl Filter<Extract = (T,), Error = warp::Rejection> + Clone {
+    warp::body::content_length_limit(1024).and(warp::body::form())
+}
+
+#[derive(Debug)]
+pub struct InternalServerError;
+impl Reject for InternalServerError {}

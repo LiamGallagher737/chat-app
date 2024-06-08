@@ -3,20 +3,14 @@
 {% block content %}
     <form action="/login" method="post">
         <label>
-            Enter your email:
-            <input type="email" name="email">
+            Enter your name:
+            <input type="text" name="username">
         </label>
 
         <label>
             Enter your password:
             <input type="password" name="password">
         </label>
-
-        {% match redirect %}
-            {% when Some with (value) %}
-                <input type="hidden" name="redirect" value="{{value}}">
-            {% when None %}
-        {% endmatch %}
 
         <button type="submit">Log in</button>
     </form>

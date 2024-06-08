@@ -1,94 +1,129 @@
-use argon2::{
-    password_hash::{rand_core::OsRng, SaltString},
-    Argon2, PasswordHasher,
-};
-use askama::Template;
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::{IntoResponse, Redirect, Response},
-    Form,
-};
-use serde::Deserialize;
-use serde_email::Email;
-use sqlx::SqlitePool;
-use tracing::info;
+pub mod filters {
+    use super::handlers;
+    use super::templates;
+    use crate::database::{with_db, DbPool};
+    use crate::form_body;
+    use crate::sessions::filters::with_key;
+    use crate::sessions::Key;
+    use warp::Filter;
 
-use crate::moderation::is_kind_message;
-
-#[derive(Template, Default)]
-#[template(path = "signup.html")]
-pub struct SignupPage {
-    error: Option<&'static str>,
-}
-pub async fn signup_page() -> SignupPage {
-    SignupPage::default()
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Input {
-    name: String,
-    age: u8,
-    email: Email,
-    password: String,
-}
-
-pub async fn post_user(
-    State(db): State<SqlitePool>,
-    Form(input): Form<Input>,
-) -> axum::response::Result<Response> {
-    info!("New sign up from user: {input:?}");
-    let mut conn = db
-        .acquire()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    if !is_kind_message(&input.name)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    {
-        return Ok(SignupPage {
-            error: Some("That username is too rude for this site >:("),
-        }
-        .into_response());
+    pub fn routes(
+        pool: DbPool,
+        key: Key,
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+        warp::any().and(signup_page().or(users_create(pool, key)))
     }
 
-    let email = input.email.to_string();
-
-    let already_exists = sqlx::query!("SELECT * FROM users WHERE email = ?", email)
-        .fetch_optional(&mut *conn)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .is_some();
-    if already_exists {
-        return Ok(SignupPage {
-            error: Some("User already exists"),
-        }
-        .into_response());
+    /// GET /signup
+    pub fn signup_page(
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+        warp::path("signup")
+            .and(warp::get())
+            .map(|| templates::SignupPage::default())
     }
 
-    let hash = hash_password(input.password).ok_or_else(|| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    sqlx::query!(
-        "INSERT INTO users (name, email, age, password_hash) VALUES ( ?, ?, ?, ? )",
-        input.name,
-        email,
-        input.age,
-        hash,
-    )
-    .execute(&mut *conn)
-    .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(Redirect::to("/login").into_response())
+    /// POST /users with form body
+    pub fn users_create(
+        pool: DbPool,
+        key: Key,
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+        warp::path("users")
+            .and(warp::post())
+            .and(form_body())
+            .and(with_db(pool))
+            .and(with_key(key))
+            .and_then(handlers::create_user)
+            .recover(handlers::rejection_handler)
+    }
 }
 
-fn hash_password(password: String) -> Option<String> {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2: Argon2 = Argon2::default();
-    let hash = argon2
-        .hash_password(password.as_bytes(), &salt)
-        .ok()?
-        .to_string();
-    Some(hash)
+mod handlers {
+    use super::models::*;
+    use super::templates::SignupPage;
+    use crate::{
+        database::Db,
+        sessions::{Key, SESSION_LENGTH_SECS},
+        InternalServerError,
+    };
+    use argon2::Argon2;
+    use password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
+    use warp::{
+        http::Uri,
+        reject::Rejection,
+        reply::{with_header, Reply},
+    };
+
+    pub async fn create_user(user: NewUser, mut db: Db, key: Key) -> Result<impl Reply, Rejection> {
+        let already_exists = sqlx::query!("SELECT * FROM users WHERE username = ?", user.username)
+            .fetch_optional(&mut *db)
+            .await
+            .map_err(|_| warp::reject::custom(InternalServerError))?
+            .is_some();
+
+        if already_exists {
+            return Err(warp::reject::custom(Error::UserAlreadyExists));
+        }
+
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+        let hash = argon2
+            .hash_password(user.password.as_bytes(), &salt)
+            .map_err(|_| warp::reject::custom(InternalServerError))?
+            .to_string();
+
+        let id = sqlx::query!(
+            "INSERT INTO users (username, password_hash) VALUES ( ?, ? )",
+            user.username,
+            hash,
+        )
+        .execute(&mut *db)
+        .await
+        .map_err(|_| warp::reject::custom(InternalServerError))?
+        .last_insert_rowid();
+
+        let token = crate::sessions::generate_token(key, id, user.username)
+            .map_err(|_| warp::reject::custom(InternalServerError))?;
+
+        Ok(with_header(
+            warp::redirect::see_other(Uri::from_static("/")),
+            "set-cookie",
+            format!("jwt={token}; max-age={SESSION_LENGTH_SECS}; secure; httponly;"),
+        ))
+    }
+
+    pub async fn rejection_handler(err: Rejection) -> Result<impl Reply, Rejection> {
+        if let Some(Error::UserAlreadyExists) = err.find() {
+            return Ok(SignupPage {
+                error: Some("A user already exists with that username"),
+            });
+        }
+        Err(err)
+    }
+}
+
+mod templates {
+    use askama::Template;
+
+    #[derive(Template, Default)]
+    #[template(path = "signup.html")]
+    pub struct SignupPage {
+        pub error: Option<&'static str>,
+    }
+}
+
+mod models {
+    use serde::Deserialize;
+    use warp::reject::Reject;
+
+    #[derive(Debug, Deserialize)]
+    pub struct NewUser {
+        pub username: String,
+        pub password: String,
+    }
+
+    #[derive(Debug)]
+    pub enum Error {
+        UserAlreadyExists,
+    }
+    impl Reject for Error {}
 }
