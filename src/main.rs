@@ -32,7 +32,7 @@ async fn main() {
         //.or(warp::any().map(|| warp::reply::with_status("Not found", warp::http::StatusCode::NOT_FOUND)))
         .with(warp::log("warp"));
 
-    warp::serve(routes).run(([127, 0, 0, 1], 43561)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], 43561)).await;
 }
 
 fn form_body<T: DeserializeOwned + Send + Sync>(
