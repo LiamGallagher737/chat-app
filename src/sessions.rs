@@ -68,15 +68,17 @@ pub mod filters {
         key: Key,
     ) -> impl Filter<Extract = (AdditionalClaimData,), Error = warp::Rejection> + Clone {
         warp::any()
-            .and(warp::cookie::<String>("jwt"))
-            .and_then(move |jwt: String| {
+            .and(warp::cookie::optional::<String>("jwt"))
+            .and_then(move |jwt: Option<String>| {
                 let key = key.clone();
                 async move {
-                    Ok::<_, warp::Rejection>(
-                        key.verify_token::<AdditionalClaimData>(&jwt, None)
+                    match jwt {
+                        Some(jwt) => Ok(key
+                            .verify_token::<AdditionalClaimData>(&jwt, None)
                             .map_err(|_| Error::NotAuthenticated)?
-                            .custom,
-                    )
+                            .custom),
+                        None => Err(warp::reject::custom(Error::NotAuthenticated)),
+                    }
                 }
             })
     }
