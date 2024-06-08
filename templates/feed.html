@@ -5,7 +5,8 @@
         <a href="/">Refresh</a>
     </noscript>
 
-    <form action="/" method="post">
+    <iframe name="frame" style="display: none;"></iframe>
+    <form action="/feed" method="post" target="frame">
         <label>
             Message:
             <input type="text" minlength="1" name="content" required>
@@ -14,7 +15,7 @@
         <button type="submit">Send</button>
     </form>
 
-    <ul>
+    <ul id="chat">
         {% for post in posts %}
             {% block post %}
                 <li>
@@ -23,4 +24,16 @@
             {% endblock post %}
         {% endfor %}
     </ul>
+
+    <script>
+        const chat = document.getElementById("chat");
+        const sse = new EventSource("http://" + location.host + "/feed");
+        sse.onmessage = function(msg) {
+            const parent = document.createElement('li');
+            const element = document.createElement('p');
+            parent.appendChild(element);
+            element.innerText = msg.data;
+            chat.insertBefore(parent, chat.firstChild);
+        };
+    </script>
 {% endblock content %}

@@ -10,8 +10,8 @@ pub type User = AdditionalClaimData;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct AdditionalClaimData {
-    user_id: i64,
-    username: String,
+    pub user_id: i64,
+    pub username: String,
 }
 
 pub fn generate_token(
@@ -37,7 +37,7 @@ pub mod filters {
         pool: DbPool,
         key: Key,
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-        warp::path("login")
+        warp::any()
             .and(login_page())
             .or(session_create(pool.clone(), key.clone()))
     }
@@ -45,7 +45,9 @@ pub mod filters {
     /// GET /login
     pub fn login_page(
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-        warp::get().map(|| templates::LoginPage::default())
+        warp::path("login")
+            .and(warp::get())
+            .map(|| templates::LoginPage::default())
     }
 
     /// POST /login
@@ -53,7 +55,8 @@ pub mod filters {
         pool: DbPool,
         key: Key,
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-        warp::post()
+        warp::path("login")
+            .and(warp::post())
             .and(form_body())
             .and(with_db(pool))
             .and(with_key(key))
@@ -102,8 +105,8 @@ mod handlers {
         key: Key,
     ) -> Result<impl Reply, Rejection> {
         let user = sqlx::query_as!(
-            UsernameAndPass,
-            "SELECT username, password_hash FROM users WHERE username = ?",
+            UserRow,
+            "SELECT id, username, password_hash FROM users WHERE username = ?",
             credentials.username,
         )
         .fetch_optional(&mut *db)
@@ -125,7 +128,7 @@ mod handlers {
             return Err(Error::InvalidCredentials.into());
         };
 
-        let token = crate::sessions::generate_token(key, 1, user.username)
+        let token = crate::sessions::generate_token(key, user.id, user.username)
             .map_err(|_| warp::reject::custom(InternalServerError))?;
 
         Ok(with_header(
@@ -169,7 +172,8 @@ mod models {
         pub password: String,
     }
 
-    pub struct UsernameAndPass {
+    pub struct UserRow {
+        pub id: i64,
         pub username: String,
         pub password_hash: String,
     }

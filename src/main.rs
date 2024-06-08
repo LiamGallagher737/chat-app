@@ -1,20 +1,16 @@
 use serde::de::DeserializeOwned;
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{mpsc, RwLock};
-use warp::{filters::ws::Message, reject::Reject, Filter};
+use warp::{reject::Reject, Filter};
 
 mod database;
 mod feed;
-mod live;
 mod sessions;
 mod users;
 
-// The type for storing the currently conencted users and their sender channels
-type Users = Arc<RwLock<HashMap<usize, mpsc::UnboundedSender<Message>>>>;
-
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
+    pretty_env_logger::formatted_builder()
+        .parse_filters("warp=info,chat_app=trace")
+        .init();
 
     let db_conenction_pool = database::DbPool::connect("sqlite://db.sqlite")
         .await
@@ -23,27 +19,18 @@ async fn main() {
 
     let jwt_key = sessions::Key::generate();
 
-    let users = Users::default();
-    let users = warp::any().map(move || users.clone());
-
-    // The path of the websocket
-    let chat = warp::path("chat")
-        .and(warp::ws())
-        .and(users)
-        .map(|ws: warp::ws::Ws, users| {
-            ws.on_upgrade(move |socket| live::user_connected(socket, users))
-        });
-
     let routes = users::filters::routes(db_conenction_pool.clone(), jwt_key.clone())
         .or(sessions::filters::routes(
             db_conenction_pool.clone(),
             jwt_key.clone(),
         ))
-        .or(feed::filters::get_feed(
+        .or(feed::filters::routes(
             db_conenction_pool.clone(),
             jwt_key.clone(),
         ))
-        .recover(sessions::not_authenticated_handler);
+        .recover(sessions::not_authenticated_handler)
+        //.or(warp::any().map(|| warp::reply::with_status("Not found", warp::http::StatusCode::NOT_FOUND)))
+        .with(warp::log("warp"));
 
     warp::serve(routes).run(([127, 0, 0, 1], 43561)).await;
 }

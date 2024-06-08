@@ -11,13 +11,15 @@ pub mod filters {
         pool: DbPool,
         key: Key,
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-        warp::path("signup").and(signup_page().or(users_create(pool, key)))
+        warp::any().and(signup_page().or(users_create(pool, key)))
     }
 
     /// GET /signup
     pub fn signup_page(
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-        warp::get().map(|| templates::SignupPage::default())
+        warp::path("signup")
+            .and(warp::get())
+            .map(|| templates::SignupPage::default())
     }
 
     /// POST /users with form body
@@ -25,7 +27,8 @@ pub mod filters {
         pool: DbPool,
         key: Key,
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-        warp::post()
+        warp::path("users")
+            .and(warp::post())
             .and(form_body())
             .and(with_db(pool))
             .and(with_key(key))
@@ -68,16 +71,17 @@ mod handlers {
             .map_err(|_| warp::reject::custom(InternalServerError))?
             .to_string();
 
-        sqlx::query!(
+        let id = sqlx::query!(
             "INSERT INTO users (username, password_hash) VALUES ( ?, ? )",
             user.username,
             hash,
         )
         .execute(&mut *db)
         .await
-        .map_err(|_| warp::reject::custom(InternalServerError))?;
+        .map_err(|_| warp::reject::custom(InternalServerError))?
+        .last_insert_rowid();
 
-        let token = crate::sessions::generate_token(key, 1, user.username)
+        let token = crate::sessions::generate_token(key, id, user.username)
             .map_err(|_| warp::reject::custom(InternalServerError))?;
 
         Ok(with_header(
