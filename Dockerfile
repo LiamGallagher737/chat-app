@@ -1,12 +1,13 @@
 FROM rust:latest AS builder
 
-if [ TARGETARCH = "amd64" ]
-  ENV TARGET = "x86_64-unknown-linux-musl"
-elif [ TARGETARCH = "arm64" ]
-  ENV TARGET = "aarch64-unknown-linux-musl"
-else
-  RUN echo "Unsupported target arch"
-fi
+RUN \
+  if [ "$TARGETARCH" = "amd64" ]; then \
+    export TARGET="x86_64-unknown-linux-musl"; \
+  elif [ "$TARGETARCH" = "arm64" ]; then \
+    export TARGET="aarch64-unknown-linux-musl"; \
+  else \
+    echo "Unsupported target arch" && exit 1; \
+  fi
 
 RUN rustup target add $TARGET
 RUN apt update && apt install -y musl-tools musl-dev clang cmake
