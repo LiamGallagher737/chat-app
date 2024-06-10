@@ -6,7 +6,7 @@ RUN \
   elif [ "$TARGETARCH" = "arm64" ]; then \
     export TARGET="aarch64-unknown-linux-musl"; \
   else \
-    echo "Unsupported target arch" && exit 1; \
+    echo "Unsupported target arch: $TARGETARCH" && exit 1; \
   fi
 
 RUN rustup target add $TARGET
