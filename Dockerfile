@@ -1,6 +1,14 @@
 FROM rust:latest AS builder
 
-RUN rustup target add x86_64-unknown-linux-musl
+if [ TARGETARCH = "amd64" ]
+  ENV TARGET = "x86_64-unknown-linux-musl"
+elif [ TARGETARCH = "arm64" ]
+  ENV TARGET = "aarch64-unknown-linux-musl"
+else
+  RUN echo "Unsupported target arch"
+fi
+
+RUN rustup target add $TARGET
 RUN apt update && apt install -y musl-tools musl-dev clang cmake
 RUN update-ca-certificates
 RUN cargo install sqlx-cli
@@ -16,10 +24,10 @@ RUN echo "DATABASE_URL=sqlite://db.sqlite" > .env
 RUN touch db.sqlite
 RUN sqlx migrate run
 
-RUN cargo build --target x86_64-unknown-linux-musl --release
+RUN cargo build --target $TARGET --release
 
 RUN mkdir out
-RUN cp target/x86_64-unknown-linux-musl/release/chat-app out/chat-app
+RUN cp target/$TARGET/release/chat-app out/chat-app
 RUN touch out/db.sqlite
 
 FROM scratch
