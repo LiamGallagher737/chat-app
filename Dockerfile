@@ -9,7 +9,14 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
     fi
 
 # Install dependencies
-RUN apt update && apt install -y musl-tools musl-dev clang cmake
+RUN apt update && apt install -y \
+    musl-tools \
+    musl-dev \
+    clang \
+    cmake \
+    gcc \
+    gcc-aarch64-linux-gnu \
+    gcc-x86-64-linux-gnu
 RUN update-ca-certificates
 RUN rustup target add ${RUST_TARGET}
 RUN cargo install sqlx-cli
