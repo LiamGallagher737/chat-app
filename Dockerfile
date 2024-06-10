@@ -1,5 +1,7 @@
 FROM rust:latest AS builder
 
+RUN echo "TARGETARCH is set to '$TARGETARCH'"
+
 RUN \
   if [ "$TARGETARCH" = "amd64" ]; then \
     export TARGET="x86_64-unknown-linux-musl"; \
