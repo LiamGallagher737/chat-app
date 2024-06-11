@@ -10,13 +10,13 @@ pub type User = AdditionalClaimData;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct AdditionalClaimData {
-    pub user_id: i64,
+    pub user_id: u64,
     pub username: String,
 }
 
 pub fn generate_token(
     key: Key,
-    user_id: i64,
+    user_id: u64,
     username: String,
 ) -> Result<String, jwt_simple::Error> {
     let custom = AdditionalClaimData { user_id, username };
@@ -175,7 +175,7 @@ mod models {
     }
 
     pub struct UserRow {
-        pub id: i64,
+        pub id: u64,
         pub username: String,
         pub password_hash: String,
     }

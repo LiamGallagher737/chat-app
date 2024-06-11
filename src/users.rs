@@ -79,7 +79,7 @@ mod handlers {
         .execute(&mut *db)
         .await
         .map_err(|_| warp::reject::custom(InternalServerError))?
-        .last_insert_rowid();
+        .last_insert_id();
 
         let token = crate::sessions::generate_token(key, id, user.username)
             .map_err(|_| warp::reject::custom(InternalServerError))?;

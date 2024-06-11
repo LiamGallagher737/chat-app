@@ -1,6 +1,6 @@
 -- Add migration script here
 CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL,
-    password_hash TEXT NOT NULL
+    id BIGINT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
+    username VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL
 );

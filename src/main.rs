@@ -1,4 +1,5 @@
 use serde::de::DeserializeOwned;
+use std::env;
 use warp::{reject::Reject, Filter};
 
 mod database;
@@ -8,13 +9,13 @@ mod users;
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::formatted_builder()
-        .parse_filters("warp=info,chat_app=trace")
-        .init();
+    dotenvy::dotenv().expect("Failed to load .env");
+    pretty_env_logger::init();
 
-    let db_conenction_pool = database::DbPool::connect("sqlite://db.sqlite")
-        .await
-        .unwrap();
+    let db_conenction_pool =
+        database::DbPool::connect(&env::var("DATABASE_URL").expect("Please set DATABASE_URL"))
+            .await
+            .unwrap();
     sqlx::migrate!().run(&db_conenction_pool).await.unwrap();
 
     let jwt_key = sessions::Key::generate();
