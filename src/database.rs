@@ -1,9 +1,9 @@
 use crate::InternalServerError;
-use sqlx::{pool::PoolConnection, Sqlite, SqlitePool};
+use sqlx::{pool::PoolConnection, MySql, MySqlPool};
 use warp::Filter;
 
-pub type Db = PoolConnection<Sqlite>;
-pub type DbPool = SqlitePool;
+pub type Db = PoolConnection<MySql>;
+pub type DbPool = MySqlPool;
 
 pub fn with_db(db_pool: DbPool) -> impl Filter<Extract = (Db,), Error = warp::Rejection> + Clone {
     warp::any().and_then(move || {

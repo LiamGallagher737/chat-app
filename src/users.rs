@@ -19,7 +19,7 @@ pub mod filters {
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
         warp::path("signup")
             .and(warp::get())
-            .map(|| templates::SignupPage::default())
+            .map(templates::SignupPage::default)
     }
 
     /// POST /users with form body
@@ -79,7 +79,7 @@ mod handlers {
         .execute(&mut *db)
         .await
         .map_err(|_| warp::reject::custom(InternalServerError))?
-        .last_insert_rowid();
+        .last_insert_id();
 
         let token = crate::sessions::generate_token(key, id, user.username)
             .map_err(|_| warp::reject::custom(InternalServerError))?;
