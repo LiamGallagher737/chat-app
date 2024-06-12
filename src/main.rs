@@ -1,3 +1,4 @@
+use log::info;
 use serde::de::DeserializeOwned;
 use std::env;
 use warp::{reject::Reject, Filter};
@@ -9,8 +10,11 @@ mod users;
 
 #[tokio::main]
 async fn main() {
-    dotenvy::dotenv().expect("Failed to load .env");
     pretty_env_logger::init();
+
+    if dotenvy::dotenv().is_ok() {
+        info!("Loaded .env");
+    }
 
     let db_conenction_pool =
         database::DbPool::connect(&env::var("DATABASE_URL").expect("Please set DATABASE_URL"))
