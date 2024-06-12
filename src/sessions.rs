@@ -47,7 +47,7 @@ pub mod filters {
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
         warp::path("login")
             .and(warp::get())
-            .map(|| templates::LoginPage::default())
+            .map(templates::LoginPage::default)
     }
 
     /// POST /login

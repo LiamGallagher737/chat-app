@@ -19,7 +19,7 @@ pub mod filters {
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
         warp::path("signup")
             .and(warp::get())
-            .map(|| templates::SignupPage::default())
+            .map(templates::SignupPage::default)
     }
 
     /// POST /users with form body
