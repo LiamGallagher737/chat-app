@@ -59,7 +59,7 @@ mod handlers {
     use super::templates::SignupPage;
     use super::{models::*, templates::UserPage};
     use crate::{
-        database::{Db, DbPool},
+        database::Db,
         sessions::{Key, User, SESSION_LENGTH_SECS},
         InternalServerError,
     };
@@ -69,7 +69,6 @@ mod handlers {
         http::Uri,
         reject::Rejection,
         reply::{with_header, Reply},
-        Filter,
     };
 
     pub async fn create_user(user: NewUser, mut db: Db, key: Key) -> Result<impl Reply, Rejection> {
