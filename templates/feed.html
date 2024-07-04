@@ -19,7 +19,7 @@
         {% for post in posts %}
             {% block post %}
                 <li>
-                    <p>{{post.username}}: {{post.content}}</p>
+                    <p><a href="/users/{{post.user_id}}">{{post.username}}</a>: {{post.content}}</p>
                 </li>
             {% endblock post %}
         {% endfor %}

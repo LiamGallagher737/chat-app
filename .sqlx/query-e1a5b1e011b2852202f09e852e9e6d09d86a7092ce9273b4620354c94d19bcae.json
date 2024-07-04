@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "\n            SELECT p.content, u.username\n            FROM posts p\n            JOIN users u ON p.user_id = u.id\n            ORDER BY p.id DESC\n            LIMIT 50\n            ",
+  "query": "\n            SELECT p.content, u.username, u.id AS user_id\n            FROM posts p\n            JOIN users u ON p.user_id = u.id\n            ORDER BY p.id DESC\n            LIMIT 50\n            ",
   "describe": {
     "columns": [
       {
@@ -22,6 +22,16 @@
           "char_set": 224,
           "max_size": 1020
         }
+      },
+      {
+        "ordinal": 2,
+        "name": "user_id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | UNSIGNED | AUTO_INCREMENT",
+          "char_set": 63,
+          "max_size": 20
+        }
       }
     ],
     "parameters": {
@@ -29,8 +39,9 @@
     },
     "nullable": [
       false,
+      false,
       false
     ]
   },
-  "hash": "6c0416d41791b74c07ac3a6c83edf8818732755999afc7f2fec6d61a936658d6"
+  "hash": "e1a5b1e011b2852202f09e852e9e6d09d86a7092ce9273b4620354c94d19bcae"
 }

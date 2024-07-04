@@ -89,7 +89,7 @@ mod handlers {
         let posts = sqlx::query_as!(
             Post,
             r#"
-            SELECT p.content, u.username
+            SELECT p.content, u.username, u.id AS user_id
             FROM posts p
             JOIN users u ON p.user_id = u.id
             ORDER BY p.id DESC
@@ -165,6 +165,7 @@ mod templates {
 mod models {
     #[derive(Debug)]
     pub struct Post {
+        pub user_id: u64,
         pub username: String,
         pub content: String,
     }
